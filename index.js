@@ -28,7 +28,12 @@ module.exports = function(val, options) {
   if (type === 'string' && val.length > 0) {
     return parse(val);
   } else if (type === 'number' && isNaN(val) === false) {
-    return options.long ? fmtLong(val) : fmtShort(val);
+      var precision = options.precision || 0;
+      if (precision) {
+	  return fmtPrecision(val, precision);
+      } else {
+	  return options.long ? fmtLong(val) : fmtShort(val);
+      }
   }
   throw new Error(
     'val is not a non-empty string or a valid number. val=' +
@@ -138,6 +143,44 @@ function fmtLong(ms) {
 }
 
 /**
+ * Precision format for `ms`.
+ *
+ * @param {Number} ms
+ * @param {String} precision
+ * @return {String}
+ * @api private
+ */
+
+fmtPrecision = function(ms, precision) {
+  var fn, ms_count, pieces, precisionIndex, unit, units;
+  units = {
+    day: d,
+    hour: h,
+    minute: m,
+    second: s
+  };
+  ms_count = ms;
+  precisionIndex = Object.keys(units).indexOf(precision);
+  pieces = [];
+  fn = function(unit) {
+    var currentIndex, intrange, range;
+    currentIndex = Object.keys(units).indexOf(unit);
+    if (currentIndex <= precisionIndex) {
+      range = pplural(ms_count, units[unit], unit);
+      if (range) {
+        pieces.push(range);
+      }
+    }
+    intrange = Math.floor(ms_count / units[unit]) * units[unit];
+    return ms_count -= intrange;
+  };
+  for (unit in units) {
+    fn(unit);
+  }
+  return pieces.join(', ');
+};
+
+/**
  * Pluralization helper.
  */
 
@@ -149,4 +192,13 @@ function plural(ms, n, name) {
     return Math.floor(ms / n) + ' ' + name;
   }
   return Math.ceil(ms / n) + ' ' + name + 's';
+}
+function pplural(ms, n, name) {
+  if (ms < n) {
+    return;
+  }
+  if (ms < n * 1.5) {
+    return Math.floor(ms / n) + ' ' + name;
+  }
+  return Math.floor(ms / n) + ' ' + name + 's';
 }
